@@ -982,17 +982,164 @@ theorem Convex.union_counterexample : ∃ A B, Convex A ∧ Convex B ∧ ¬ Conv
   · linarith
 
 
+/-- **(33 балла)**
 
+Пусть множество натуральных чисел удовлетворяет двум условиям:
+1. Оно содержит 0
+2. Оно переходит внутрь себя при сдвиге на 2.
 
+Докажите, что оно содержит множество чётных чисел.
+-/
+theorem subset_even (S : Set ℕ) (h0 : 0 ∈ S) (h_add : (fun n ↦ n + 2) '' S ⊆ S) :
+    {x | x % 2 = 0} ⊆ S := by  
+  simp_all[Set.subseteq_def]
+  intro a
+  intro ha 
+  induction' a  using Nat.strong_induction_on with  n a_1
+  specialize a_1 (n - 2)
+  by_cases hp: 2 ≤ n
+  { 
+    have gg : n - 2 < n := by omega
+    have rr: (n - 2) % 2 = 0 := by omega
+    have dd: n - 2 ∈ S := by aesop
+    have tt : n - 2 + 2 ∈ S := by
+     specialize h_add (n -2)
+     simp_all
+    convert tt using 1
+    omega 
+  }
+  {
+    simp at hp
+    rcases hp
+    { simp_all }
+    { simp_all }   
+  }
+      
+open scoped Classical
 
+/-- Теорема Кантора: не существует сюръекции α → P(α).
 
+**(25 баллов)** -/
+theorem cantor (α : Type) : ¬ ∃ f : α → Set α, Function.Surjective f := by
+  -- 1. Предполагаем от противного, что сюръекция f существует
+  rw[Not]
+  intro a
+  simp_all[Function.Surjective]
+  rcases a with ⟨w, h⟩
+  -- 2. Определяем диагональное множество B = {x | x ∉ f x}
+  let B : Set α := {x | x ∉ w x}
+  specialize h B
+  unfold B at h
+  rcases h with ⟨w_1, h⟩
 
+  have h_iff : w_1 ∈ w w_1 ↔ w_1 ∈ B := by rw [h]
+  unfold B at h_iff
+  change w_1 ∈ w w_1 ↔ w_1 ∉ w w_1 at h_iff
+  rcases h_iff with ⟨mp, mpr⟩
+  by_cases hp: w_1 ∈ w w_1
+  {  
+    exact (mp hp) hp
+  }
+  {
+    have tt : w_1 ∈ w w_1 := by 
+      apply mpr
+      trivial
+    trivial  
+  }
 
+noncomputable def directIter {α β : Type*} (f : α → β) (g : β → α) : ℕ → Set α
+  | 0 => (Set.range g)ᶜ
+  | n + 1 => (g ∘ f) '' (directIter f g n)
 
+noncomputable def directPoints {α β : Type*} (f : α → β) (g : β → α) : Set α :=
+  ⋃ i, directIter f g i
 
+noncomputable def h {α β : Type*} [Nonempty β] (f : α → β) (g : β → α) (x : α) : β :=
+  if x ∈ directPoints f g then f x else (Function.invFun g) x
 
+theorem sb_surjective {α β : Type*} [Nonempty β] {f : α → β} {g : β → α}
+  (injg : Function.Injective g) : Function.Surjective (h f g) := by
+  intro b
+  simp only [h]
+  by_cases gb_direct : g b ∈ directPoints f g
+  · /- If g(b) is a part of a direct chain, it must have been added
+    to the direct set via some a -(f)-> b -(g)-> g(b) iteration.
+    By picking that a, we get h(a) = f(a) = b, proving b is reachable. -/
+    simp only [directPoints, Set.mem_iUnion] at *
+    rcases gb_direct with ⟨n, hn⟩
+    rcases n with _ | n
+    · tauto
+    · rcases hn with ⟨a, a_direct, ha⟩
+      use a
+      rw [if_pos (by use n)]
+      exact injg ha
+  /- If g(b) is not a part of some direct chain [1], pick a := g(b).
+  For that a, h(a) =(by [1])= inv_g(a) =(by def.)= inv_g(g(b)).
+  Thus, proving inv_g(g(b)) = b would be enough to show b is reachable.
+  To cancel them out, we'll wrap both sides with g (thanks, injectivity). -/
+  use g b
+  rw [if_neg gb_direct]
+  apply injg
+  apply Function.invFun_eq
+  use b
 
+theorem g_right_inv {α β : Type*} [Nonempty β] {f : α → β} {g : β → α}
+    {a : α} (ha : a ∉ directPoints f g) :
+    g (Function.invFun g a) = a := by
+  have : ∃ b, g b = a := by
+    simp only [directPoints, Set.mem_iUnion] at ha
+    contrapose! ha
+    use 0
+    simp only [directIter, Set.mem_compl_iff, Set.mem_range]
+    tauto
+  apply Function.invFun_eq this
 
+theorem heq_imp_same_directness {α β : Type*} [Nonempty β] {f : α → β} {g : β → α}
+    {a1 a2 : α} (ha1 : a1 ∈ directPoints f g)
+    (heq : h f g a1 = h f g a2) : a2 ∈ directPoints f g := by
+  simp only [h] at *
+  rw [if_pos ha1] at heq
+  by_cases ha2 : a2 ∈ directPoints f g
+  · tauto
+  · rw [if_neg ha2] at heq
+    simp only [directPoints, Set.mem_iUnion] at ha1
+    rcases ha1 with ⟨i, hi⟩
+    simp only [directPoints, Set.mem_iUnion]
+    use i + 1, a1, hi
+    rw [Function.comp_apply, heq]
+    exact g_right_inv ha2
+    
+
+theorem sb_injective {α β : Type*} [Nonempty β] {f : α → β} {g : β → α}
+    (injf : Function.Injective f) : Function.Injective (h f g) := by
+  intro a1 a2 heq
+  by_cases a1_direct : a1 ∈ directPoints f g
+  · by_cases a2_direct : a2 ∈ directPoints f g
+    · rw [h, h, if_pos a1_direct, if_pos a2_direct] at heq
+      exact injf heq
+    · have := heq_imp_same_directness  a1_direct heq
+      contradiction
+  · by_cases a2_direct : a2 ∈ directPoints f g
+    · have := heq_imp_same_directness  a2_direct heq.symm
+      contradiction
+    · rw [h, h, if_neg a1_direct, if_neg a2_direct] at heq
+      have ginv_a1 := g_right_inv a1_direct
+      have ginv_a2 := g_right_inv a2_direct
+      rw [← ginv_a1, ← ginv_a2, heq]
+
+theorem cantor_bernstein (α β : Type) (f : α → β) (g : β → α)
+    (hf : Function.Injective f) (hg : Function.Injective g) :
+    ∃ f' : α → β, Function.Bijective f' := by
+  by_cases hβ : Nonempty β
+  · haveI : Nonempty β := hβ
+    exact ⟨h f g, sb_injective hf, sb_surjective hg⟩
+  · haveI : IsEmpty β := not_nonempty_iff.mp hβ
+    have hα : IsEmpty α := by
+      rw [← not_nonempty_iff]
+      intro h
+      exact hβ (h.map f)
+    haveI := hα
+    exact ⟨f, fun a1 a2 _ => Subsingleton.elim a1 a2, fun b => isEmptyElim b⟩
 
 
 #min_imports
