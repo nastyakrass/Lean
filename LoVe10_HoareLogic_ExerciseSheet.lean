@@ -136,8 +136,6 @@ def sumUpTo : ℕ → ℕ
 emerging verification conditions. -/
 theorem GAUSS_correct (N : ℕ) :
     {* fun s ↦ True *} (GAUSS N) {* fun s ↦ s "r" = sumUpTo N *} :=
-
-
     by
     unfold GAUSS
     -- Преобразуем whileDo в invWhileDo с явным инвариантом
@@ -163,58 +161,6 @@ theorem GAUSS_correct (N : ℕ) :
     simp [sumUpTo, State.update]
 
 
-
-/-
-theorem GAUSS_correctt (N : ℕ) :
-    {* fun s ↦ True *} (GAUSS N) {* fun s ↦ s "r" = sumUpTo N *} :=
-    by
-       unfold GAUSS
-       simp [Stmt.assign, Stmt.seq, PartialHoare]
-       intros
-       vcg
-       cases a
-       simp_all
-       vcg
-       apply PartialHoare.while_intro' (fun s ↦ s "r" = sumUpTo (s "n") ∧ s "n" ≤ N) at hrest
-
-
-
-
-
-      unfold GAUSS
-      simp_all
-      unfold PartialHoare
-      intros
-      simp_all
-      vcg
-
-      apply PartialHoare.while_intro'
-        (fun s ↦ s "r" = sumUpTo (s "n") ∧ s "n" ≤ N) at a_1
-      {
-         vcg
-
-      }
-
-
-       simp_all
-       rw[PartialHoare]
-       intros
-       rcases a
-       rcases left
-       simp_all
-       rcases right_1
-       simp_all
-       simp_all
-       /-exact Nat.succ_le_of_lt (Nat.lt_of_le_of_ne right_1 right)
-     -/)
-    (by
-       intros
-       simp_all
-     )
-    (by
-       intros
-       simp_all
-    )-/
 /- 1.4 (**optional**). The following program `MUL` is intended to compute the
 product of `n` and `m`, leaving the result in `r`.
 Invoke `vcg` on `MUL` using a
